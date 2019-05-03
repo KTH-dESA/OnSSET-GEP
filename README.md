@@ -31,6 +31,6 @@ Both onsset.py and runner.py files are supported by the "TODO" functionality. Th
 
 ### Supplementary material
 
-- For any additional information please contact the GEP team [here.](https://gep-user-guide.readthedocs.io/en/latest/Contact.html)
+- For any additional information please contact the GEP team [here](https://gep-user-guide.readthedocs.io/en/latest/Contact.html)
 
 
