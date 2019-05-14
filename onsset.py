@@ -476,18 +476,18 @@ class Technology:
         # RUN_PARAM: Here are the assumptions related to cost and physical properties of grid extension elements
         # REVIEW - A final revision is needed before publishing
         HV_line_type = 69  # kV
-        HV_line_cost = 28000  # $/km for 69kV
+        HV_line_cost = 53000  # $/km for 69kV
 
         MV_line_type = 33  # kV
         MV_line_amperage_limit = 8.0  # Ampere (A)
-        MV_line_cost = 13000  # $/km  for 11-33 kV
+        MV_line_cost = 7000  # $/km  for 11-33 kV
 
         LV_line_type = 0.240  # kV
         LV_line_cost = 10000  # $/km for 0.4 kV
         LV_line_max_length = 0.5  # km
 
         service_Transf_type = 50  # kVa
-        service_Transf_cost = 3500  # $/unit
+        service_Transf_cost = 4250  # $/unit
         max_nodes_per_serv_trans = 300  # maximum number of nodes served by each service transformer
         MV_LV_sub_station_type = 400  # kVa
         MV_LV_sub_station_cost = 10000  # $/unit
@@ -711,13 +711,13 @@ class Technology:
                     capital_investment = installed_capacity * self.capital_cost[0.100] * conflict_sa_pen[conf_status]
                     total_om_cost = td_om_cost + (self.capital_cost[0.100] * self.om_costs * conflict_sa_pen[
                         conf_status] * installed_capacity)
-                elif installed_capacity / (people / num_people_per_hh) < 0.200:
-                    capital_investment = installed_capacity * self.capital_cost[0.200] * conflict_sa_pen[conf_status]
-                    total_om_cost = td_om_cost + (self.capital_cost[0.200] * self.om_costs * conflict_sa_pen[
+                elif installed_capacity / (people / num_people_per_hh) < 1:
+                    capital_investment = installed_capacity * self.capital_cost[1] * conflict_sa_pen[conf_status]
+                    total_om_cost = td_om_cost + (self.capital_cost[1] * self.om_costs * conflict_sa_pen[
                         conf_status] * installed_capacity)
                 else:
-                    capital_investment = installed_capacity * self.capital_cost[0.300] * conflict_sa_pen[conf_status]
-                    total_om_cost = td_om_cost + (self.capital_cost[0.300] * self.om_costs * conflict_sa_pen[
+                    capital_investment = installed_capacity * self.capital_cost[5] * conflict_sa_pen[conf_status]
+                    total_om_cost = td_om_cost + (self.capital_cost[5] * self.om_costs * conflict_sa_pen[
                         conf_status] * installed_capacity)
             elif mg_hybrid:
                 diesel_lookup = int(round(2 * self.diesel_price * self.diesel_truck_consumption *
@@ -835,7 +835,7 @@ class SettlementProcessor:
             print("Please make sure that the country name you provided and the .csv file, both have the same name")
             raise
 
-    def condition_df(self, country):
+    def condition_df(self):
         """
         Do any initial data conditioning that may be required.
         """
@@ -858,9 +858,6 @@ class SettlementProcessor:
 
         # self.df.loc[self.df[SET_NTL_BIN] > self.df['NTLArea'], SET_NTL_BIN] = self.df['NTLArea']
         self.df.loc[self.df[SET_ELEC_POP] > self.df[SET_POP], SET_ELEC_POP] = self.df[SET_POP]
-
-        logging.info('Add column with country name')
-        self.df[SET_COUNTRY] = country
 
         logging.info('Adding column "ElectrificationOrder"')
         self.df[SET_ELEC_ORDER] = 0
@@ -1120,7 +1117,7 @@ class SettlementProcessor:
             yearly_rural_growth_rate_low = rural_growth_low ** (1 / project_life)
 
         # RUN_PARAM: Define here the years for which results should be provided in the output file.
-        yearsofanalysis = [2023, 2030]
+        yearsofanalysis = [2025, 2030]
 
         for year in yearsofanalysis:
             self.df[SET_POP + "{}".format(year) + 'High'] = self.df.apply(lambda row: row[SET_POP_CALIB] *
@@ -1144,7 +1141,8 @@ class SettlementProcessor:
 
         return urban_modelled
 
-    def elec_current_and_future(self, elec_actual, elec_actual_urban, elec_actual_rural, pop_tot, start_year):
+    def elec_current_and_future(self, elec_actual, elec_actual_urban, elec_actual_rural, pop_tot, start_year,
+                                min_night_lights=0, min_pop=50, max_transformer_dist=2, max_mv_dist=2, max_hv_dist=5):
         """
         Calibrate the current electrification status, and future 'pre-electrification' status
         """
@@ -1168,9 +1166,11 @@ class SettlementProcessor:
         if max(self.df[SET_DIST_TO_TRANS]) > 0:
             self.df[SET_CALIB_GRID_DIST] = self.df[SET_DIST_TO_TRANS]
             priority = 1
+            dist_limit = max_transformer_dist
         elif max(self.df[SET_MV_DIST_CURRENT]) > 0:
             self.df[SET_CALIB_GRID_DIST] = self.df[SET_MV_DIST_CURRENT]
             priority = 1
+            dist_limit = max_mv_dist
         else:
             self.df[SET_CALIB_GRID_DIST] = self.df[SET_HV_DIST_CURRENT]
             priority = 2
@@ -1185,8 +1185,8 @@ class SettlementProcessor:
             if priority == 1:
                 print(
                     'We have identified the existence of transformers or MV lines as input data; therefore we proceed using those for the calibration')
-                self.df.loc[(self.df[SET_CALIB_GRID_DIST] < 2) & (self.df[SET_NIGHT_LIGHTS] > 0) & (
-                        self.df[SET_POP_CALIB] > 50), SET_ELEC_CURRENT] = 1  # REVIEW 500 vs 300
+                self.df.loc[(self.df[SET_CALIB_GRID_DIST] < dist_limit) & (self.df[SET_NIGHT_LIGHTS] > min_night_lights) & (
+                        self.df[SET_POP_CALIB] > min_pop), SET_ELEC_CURRENT] = 1
                 urban_elec_modelled = self.df.loc[
                     (self.df[SET_ELEC_CURRENT] == 1) & (self.df[SET_URBAN] > 1), SET_ELEC_POP_CALIB].sum()
                 rural_elec_modelled = self.df.loc[
@@ -1233,32 +1233,36 @@ class SettlementProcessor:
                 td_dist_2 = 0.1
                 while elec_actual - elec_modelled > 0.01:
                     if i < 50:
-                        pop_elec_2 = self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > 25) &
+                        pop_elec_2 = self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > min_pop) &
                                                  (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_POP_CALIB].sum()
                         if (pop_elec + pop_elec_2) / pop_tot > elec_actual:
                             elec_modelled = (pop_elec + pop_elec_2) / pop_tot
-                            self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > 25) &
-                                        (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_ELEC_CURRENT] = 1
-                            self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > 25) &
+                            self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > min_pop) &
                                         (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_ELEC_POP_CALIB] = self.df[SET_POP_CALIB]
+                            self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > min_pop) &
+                                        (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_ELEC_CURRENT] = 1
                         else:
                             i += 1
                             td_dist_2 += 0.1
                     else:
-                        self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > 25) &
+                        self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > min_pop) &
+                                    (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_ELEC_POP_CALIB] = self.df[SET_POP_CALIB]
+                        self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > min_pop) &
                                     (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_ELEC_CURRENT] = 1
-                        self.df.loc[(self.df[SET_ELEC_CURRENT] == 0) & (self.df[SET_POP_CALIB] > 25) &
-                                    (self.df[SET_CALIB_GRID_DIST] < td_dist_2), SET_ELEC_POP_CALIB] = self.df[
-                            SET_POP_CALIB]
                         elec_modelled = (pop_elec + pop_elec_2) / pop_tot
                         break
+
+                if elec_modelled > elec_actual:
+                    self.df[SET_ELEC_POP_CALIB] *= elec_actual / elec_modelled
+                pop_elec = self.df.loc[self.df[SET_ELEC_CURRENT] == 1, SET_ELEC_POP_CALIB].sum()
+                elec_modelled = pop_elec / pop_tot
 
             # RUN_PARAM: Calibration parameters if only HV lines are available
             else:
                 print(
                     'No transformers or MV lines were identified as input data; therefore we proceed to the calibration with HV line info')
-                self.df.loc[(self.df[SET_CALIB_GRID_DIST] < 5) & (self.df[SET_NIGHT_LIGHTS] > 0) & (
-                        self.df[SET_POP_CALIB] > 300), SET_ELEC_CURRENT] = 1
+                self.df.loc[(self.df[SET_CALIB_GRID_DIST] < max_hv_dist) & (self.df[SET_NIGHT_LIGHTS] > min_night_lights) & (
+                        self.df[SET_POP_CALIB] > min_pop), SET_ELEC_CURRENT] = 1
 
                 urban_elec_modelled = self.df.loc[
                     (self.df[SET_ELEC_CURRENT] == 1) & (self.df[SET_URBAN] > 1), SET_ELEC_POP_CALIB].sum()
@@ -2450,6 +2454,8 @@ class SettlementProcessor:
 
         if eleclimit == 1:
             self.df[SET_LIMIT + "{}".format(year)] = 1
+            self.df[SET_INVEST_PER_CAPITA + "{}".format(year)] = self.df[SET_INVESTMENT_COST + "{}".format(year)] / \
+                                                                 self.df[SET_NEW_CONNECTIONS + "{}".format(year)]
             elecrate = 1
         else:
             choice = int(prioritization)

@@ -21,7 +21,7 @@ specs_path = filedialog.askopenfilename()
 # specs = pd.read_excel(specs_path, index_col=0)
 
 # RUN_PARAM: Insert the name of the country you are working on. More countries should be separated using comma e.g. ["Malawi", "Ghana"]
-countries = ['Nigeria']
+countries = ['Country']
 # countries = str(input('countries: ')).split()
 # countries = specs.index.tolist() if 'all' in countries else countries
 
@@ -54,8 +54,8 @@ elif choice == 2:
 
     for country in countries:
         print(country)
-        settlements_in_csv = base_dir  # os.path.join(base_dir, '{}.csv'.format(country))
-        settlements_out_csv = output_dir + '.csv'  # os.path.join(output_dir, '{}.csv'.format(country))
+        settlements_in_csv = base_dir
+        settlements_out_csv = output_dir + '.csv'
 
         onsseter = SettlementProcessor(settlements_in_csv)
 
@@ -71,7 +71,7 @@ elif choice == 2:
 
         onsseter.prepare_wtf_tier_columns(num_people_per_hh_rural, num_people_per_hh_urban,
                                           tier_1, tier_2, tier_3, tier_4, tier_5)
-        onsseter.condition_df(country)
+        onsseter.condition_df()
         onsseter.grid_penalties()
         onsseter.calc_wind_cfs()
 
@@ -121,9 +121,12 @@ elif choice == 3:
 
     messagebox.showinfo('OnSSET', 'Open the csv file with calibrated GIS data')
     base_dir = filedialog.askopenfilename()
-    messagebox.showinfo('OnSSET', 'Browse to result folder and name the scenario to save outputs')
+    messagebox.showinfo('OnSSET', 'Browse to RESULTS folder to save outputs')
     # output_dir = filedialog.asksaveasfilename()
     output_dir = filedialog.askdirectory()
+    messagebox.showinfo('OnSSET', 'Browse to SUMMARIES folder and name the scenario to save outputs')
+    # output_dir_summaries = filedialog.asksaveasfilename()
+    output_dir_summaries = filedialog.askdirectory()
 
     print('\n --- Running scenario --- \n')
 
@@ -158,19 +161,15 @@ elif choice == 3:
         prioritization = ScenarioParameters.iloc[prioIndex]['PrioritizationAlgorithm']
         auto_intensification = ScenarioParameters.iloc[prioIndex]['AutoIntensificationKM']
 
-        settlements_in_csv = base_dir  # os.path.join(base_dir, '{}.csv'.format(country))
-        # settlements_out_csv = output_dir + '.csv' # os.path.join(output_dir, '{}_{}_{}.csv'.format(country, wb_tier_urban, diesel_tag))
+        settlements_in_csv = base_dir
         settlements_out_csv = os.path.join(output_dir,
-                                           '{}-1_{}_{}_{}_{}_{}_{}_{}_{}.csv'.format(countryID, popIndex, tierIndex,
+                                           '{}-1-{}_{}_{}_{}_{}_{}.csv'.format(countryID, popIndex, tierIndex,
                                                                                      fiveyearIndex, gridIndex, pvIndex,
-                                                                                     dieselIndex, productiveIndex,
                                                                                      prioIndex))
-        summary_csv = os.path.join(output_dir,
-                                   '{}-1_{}_{}_{}_{}_{}_{}_{}_{}_summary.csv'.format(countryID, popIndex, tierIndex,
+        summary_csv = os.path.join(output_dir_summaries,
+                                   '{}-1-{}_{}_{}_{}_{}_{}_summary.csv'.format(countryID, popIndex, tierIndex,
                                                                                      fiveyearIndex, gridIndex, pvIndex,
-                                                                                     dieselIndex, productiveIndex,
                                                                                      prioIndex))
-        # summary_csv = output_dir + 'summary.csv'
 
         onsseter = SettlementProcessor(settlements_in_csv)
 
@@ -192,11 +191,11 @@ elif choice == 3:
         Technology.set_default_values(base_year=start_year,
                                       start_year=start_year,
                                       end_year=end_year,
-                                      discount_rate=0.08)
+                                      discount_rate=0.09)
 
         grid_calc = Technology(om_of_td_lines=0.02,
                                distribution_losses=float(SpecsData.iloc[0][SPE_GRID_LOSSES]),
-                               connection_cost_per_hh=150,
+                               connection_cost_per_hh=125,
                                base_to_peak_load_ratio=float(SpecsData.iloc[0][SPE_BASE_TO_PEAK]),
                                capacity_factor=1,
                                tech_life=30,
@@ -206,44 +205,43 @@ elif choice == 3:
 
         mg_hydro_calc = Technology(om_of_td_lines=0.02,
                                    distribution_losses=0.05,
-                                   connection_cost_per_hh=125,
-                                   base_to_peak_load_ratio=1,
+                                   connection_cost_per_hh=100,
+                                   base_to_peak_load_ratio=0.85,
                                    capacity_factor=0.5,
                                    tech_life=30,
-                                   capital_cost=5000,
-                                   om_costs=0.02)
+                                   capital_cost=3000,
+                                   om_costs=0.03)
 
         mg_wind_calc = Technology(om_of_td_lines=0.02,
                                   distribution_losses=0.05,
-                                  connection_cost_per_hh=125,
-                                  base_to_peak_load_ratio=0.75,
-                                  capital_cost=2500,
+                                  connection_cost_per_hh=100,
+                                  base_to_peak_load_ratio=0.85,
+                                  capital_cost=3750,
                                   om_costs=0.02,
                                   tech_life=20)
 
-        mg_pv_calc = Technology(om_of_td_lines=0.03,
+        mg_pv_calc = Technology(om_of_td_lines=0.02,
                                 distribution_losses=0.05,
-                                connection_cost_per_hh=125,
-                                base_to_peak_load_ratio=0.9,
+                                connection_cost_per_hh=100,
+                                base_to_peak_load_ratio=0.85,
                                 tech_life=20,
-                                om_costs=0.02,
-                                capital_cost=4300 * pv_capital_cost_adjust)
+                                om_costs=0.015,
+                                capital_cost=2950 * pv_capital_cost_adjust)
 
         sa_pv_calc = Technology(base_to_peak_load_ratio=0.9,
                                 tech_life=15,
                                 om_costs=0.02,
-                                capital_cost={0.020: 20000 * pv_capital_cost_adjust,
-                                              0.050: 11050 * pv_capital_cost_adjust,
-                                              0.100: 7660 * pv_capital_cost_adjust,
-                                              0.200: 5780 * pv_capital_cost_adjust,
-                                              0.300: 5070 * pv_capital_cost_adjust},
-                                # capital_cost=5500 * pv_capital_cost_adjust,
+                                capital_cost={0.020: 9620 * pv_capital_cost_adjust,
+                                              0.050: 8780 * pv_capital_cost_adjust,
+                                              0.100: 6380 * pv_capital_cost_adjust,
+                                              1: 4470 * pv_capital_cost_adjust,
+                                              5: 6950 * pv_capital_cost_adjust},
                                 standalone=True)
 
         mg_diesel_calc = Technology(om_of_td_lines=0.02,
                                     distribution_losses=0.05,
-                                    connection_cost_per_hh=125,
-                                    base_to_peak_load_ratio=0.5,
+                                    connection_cost_per_hh=100,
+                                    base_to_peak_load_ratio=0.85,
                                     capacity_factor=0.7,
                                     tech_life=15,
                                     om_costs=0.1,
@@ -338,9 +336,9 @@ elif choice == 3:
         ### HERE STARTS THE ACTUAL ANALYSIS WITH THE INCLUSION OF TIME STEPS
 
         # RUN_PARAM: One shall define here the years of analysis (excluding start year) together with access targets per interval and timestep duration
-        yearsofanalysis = [2023, 2030]
-        eleclimits = {2023: five_year_target, 2030: 1}
-        time_steps = {2023: 5, 2030: 7}
+        yearsofanalysis = [2025, 2030]
+        eleclimits = {2025: five_year_target, 2030: 1}
+        time_steps = {2025: 7, 2030: 5}
 
         elements = ["1.Population", "2.New_Connections", "3.Capacity", "4.Investment"]
         techs = ["Grid", "SA_Diesel", "SA_PV", "MG_Diesel", "MG_PV", "MG_Wind", "MG_Hydro", "MG_Hybrid"]
@@ -374,8 +372,13 @@ elif choice == 3:
         for year in yearsofanalysis:
             eleclimit = eleclimits[year]
             time_step = time_steps[year]
-            grid_cap_gen_limit = time_step * annual_grid_cap_gen_limit
-            grid_connect_limit = time_step * annual_new_grid_connections_limit
+
+            if year - time_step == start_year:
+                grid_cap_gen_limit = time_step * annual_grid_cap_gen_limit
+                grid_connect_limit = time_step * annual_new_grid_connections_limit
+            else:
+                grid_cap_gen_limit = 9999999999
+                grid_connect_limit = 9999999999
 
             hybrid_1 = pv_diesel_hyb.pv_diesel_hybrid(1, max(onsseter.df[SET_GHI]),
                                                       max(onsseter.df[SET_TRAVEL_HOURS]), 1, year - time_step, end_year,
@@ -421,6 +424,14 @@ elif choice == 3:
                                     end_year, time_step)
 
             onsseter.calc_summaries(df_summary, sumtechs, year)
+
+        onsseter.df['FinalElecCode' + str(year)] = onsseter.df['FinalElecCode' + str(year)].astype(int)
+
+        for i in range(len(onsseter.df.columns)):
+            if onsseter.df.iloc[:, i].dtype == 'float64':
+                onsseter.df.iloc[:, i] = pd.to_numeric(onsseter.df.iloc[:, i], downcast='float')
+            elif onsseter.df.iloc[:, i].dtype == 'int64':
+                onsseter.df.iloc[:, i] = pd.to_numeric(onsseter.df.iloc[:, i], downcast='signed')
 
         df_summary.to_csv(summary_csv, index=sumtechs)
         onsseter.df.to_csv(settlements_out_csv, index=False)
