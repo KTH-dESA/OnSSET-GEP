@@ -483,7 +483,7 @@ class Technology:
         MV_line_cost = 7000  # $/km  for 11-33 kV
 
         LV_line_type = 0.240  # kV
-        LV_line_cost = 10000  # $/km for 0.4 kV
+        LV_line_cost = 4250  # $/km for 0.4 kV
         LV_line_max_length = 0.5  # km
 
         service_Transf_type = 50  # kVa
